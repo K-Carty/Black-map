@@ -35,6 +35,7 @@ from folium import Choropleth, LayerControl, Map, Popup, Icon, Marker, CircleMar
 from folium.plugins import MarkerCluster
 from shapely.geometry import Point, Polygon
 import json
+import streamlit as st # Import streamlit to use st.cache_data
 
 # ---------------------------------------------------------------------------
 # Logging & constants
@@ -110,6 +111,7 @@ def _identify_msoa_columns(gdf: gpd.GeoDataFrame) -> tuple[str, str]:
 # Data loaders
 # ---------------------------------------------------------------------------
 
+@st.cache_data
 def load_income() -> pd.DataFrame:
     """Load income data from local Excel file."""
     xl = pd.ExcelFile(INCOME_XLSX)
@@ -121,12 +123,14 @@ def load_income() -> pd.DataFrame:
     })
     return df[["msoa", "income"]]
 
+@st.cache_data
 def load_black_population() -> pd.DataFrame:
     """Load Black population data from local CSV file."""
     df = pd.read_csv(BLACK_POP_CSV)
     df["black_share"] = df["black_count"] / df["population"]
     return df
 
+@st.cache_data
 def load_housing_affordability() -> pd.DataFrame:
     """Load housing affordability data from local Excel file."""
     xl = pd.ExcelFile(HOUSING_XLSX)
@@ -157,6 +161,7 @@ def load_housing_affordability() -> pd.DataFrame:
     # Select and return only the relevant columns
     return df[["msoa", "msoa_full_name", "median_house_price"]]
 
+@st.cache_data
 def load_london_shapes() -> gpd.GeoDataFrame:
     """Load London MSOA boundaries from local ZIP file."""
     with zipfile.ZipFile(BOUNDARIES_ZIP) as zf:
