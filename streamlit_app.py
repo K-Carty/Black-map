@@ -141,22 +141,24 @@ def create_base_map(dataframe, current_filter_mask_series, show_black_share, sho
         <div style="
             position: absolute;
             bottom: {bottom_offset}px;
-            left: 20px; /* Position from left edge */
-            z-index: 9999; /* Ensure it's on top of other elements */
-            background-color: white; /* Changed to white */
-            padding: 12px; /* Smaller padding */
+            left: 20px;
+            z-index: 1000;
+            background-color: white;
+            padding: 10px;
             border-radius: 5px;
-            box-shadow: 0 0 5px rgba(0,0,0,0.3); /* Softer shadow */
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
             font-family: Arial, sans-serif;
-            font-size: 12px; /* Smaller font */
-            border: 1px solid #ccc; /* Lighter border */
+            font-size: 12px;
+            border: 1px solid black;
+            max-width: 200px;
+            opacity: 0.9;
         ">
-            <h4 style="margin-top: 0; margin-bottom: 5px; font-size: 14px;">{title}</h4>
+            <h4 style="margin-top: 0; margin-bottom: 8px; font-size: 14px; font-weight: bold;">{title}</h4>
         """
         for color, label in color_stops:
             legend_html += f"""
-            <div style="display: flex; align-items: center; margin-bottom: 3px;">
-                <div style="width: 20px; height: 15px; background-color: {color}; border: 1px solid #ccc; margin-right: 8px;"></div>
+            <div style="display: flex; align-items: center; margin-bottom: 4px;">
+                <div style="width: 20px; height: 15px; background-color: {color}; border: 1px solid #666; margin-right: 8px;"></div>
                 <span>{label}</span>
             </div>
             """
@@ -174,9 +176,8 @@ def create_base_map(dataframe, current_filter_mask_series, show_black_share, sho
         for del_item in del_list:
             choropleth_obj._children.pop(del_item)
 
-
     # Layer 1 – % Black (Static Choropleth)
-    black_share_choropleth = Choropleth( # Assign to a variable
+    black_share_choropleth = Choropleth(
         geo_data=dataframe,
         data=dataframe,
         columns=["msoa", "black_share"],
@@ -185,12 +186,24 @@ def create_base_map(dataframe, current_filter_mask_series, show_black_share, sho
         fill_color="YlOrRd",
         fill_opacity=0.8,
         line_opacity=0.2,
-        show=show_black_share # Controlled by sidebar checkbox
+        show=show_black_share
     ).add_to(m)
-    remove_folium_choropleth_legend(black_share_choropleth) # CALL THE HELPER FUNCTION HERE
+    remove_folium_choropleth_legend(black_share_choropleth)
+    
+    if show_black_share:
+        black_share_legend = create_custom_legend_html(
+            "% Black Population",
+            [
+                ("#FFFFCC", "Low (0-10%)"),
+                ("#FD8D3C", "Medium (10-30%)"),
+                ("#BD0026", "High (30%+)"),
+            ],
+            230
+        )
+        m.get_root().html.add_child(folium.Element(black_share_legend))
 
     # Layer 2 – Income (Static Choropleth)
-    income_choropleth = Choropleth( # Assign to a variable
+    income_choropleth = Choropleth(
         geo_data=dataframe,
         data=dataframe,
         columns=["msoa", "income"],
@@ -199,13 +212,24 @@ def create_base_map(dataframe, current_filter_mask_series, show_black_share, sho
         fill_color="BuGn",
         fill_opacity=0.5,
         line_opacity=0.2,
-        overlay=True,
-        show=show_income # Controlled by sidebar checkbox
+        show=show_income
     ).add_to(m)
     remove_folium_choropleth_legend(income_choropleth)
+    
+    if show_income:
+        income_legend = create_custom_legend_html(
+            "Mean Income",
+            [
+                ("#EDF8FB", "Low"),
+                ("#8FCDAE", "Medium"),
+                ("#006D2C", "High"),
+            ],
+            120
+        )
+        m.get_root().html.add_child(folium.Element(income_legend))
 
     # Layer 3 – Housing Affordability (Median House Price) (Static Choropleth)
-    house_price_choropleth = Choropleth( # Assign to a variable
+    house_price_choropleth = Choropleth(
         geo_data=dataframe,
         data=dataframe,
         columns=["msoa", "median_house_price"],
@@ -214,27 +238,35 @@ def create_base_map(dataframe, current_filter_mask_series, show_black_share, sho
         fill_color="YlGnBu",
         fill_opacity=0.6,
         line_opacity=0.2,
-        overlay=True,
-        show=show_house_price # Controlled by sidebar checkbox
+        show=show_house_price
     ).add_to(m)
     remove_folium_choropleth_legend(house_price_choropleth)
+    
+    if show_house_price:
+        house_price_legend = create_custom_legend_html(
+            "Median House Price",
+            [
+                ("#FFFFD9", "Low"),
+                ("#99D594", "Medium"),
+                ("#2C7FB8", "High"),
+            ],
+            10
+        )
+        m.get_root().html.add_child(folium.Element(house_price_legend))
 
     # --- Dynamic Layer: Filtered Areas (GeoJson with conditional styling) ---
-    # Create a new GeoDataFrame that includes the boolean mask as a property
     gdf_with_filter_mask = dataframe.copy()
     gdf_with_filter_mask["is_filtered"] = current_filter_mask_series.astype(int)
 
     def style_function(feature):
-        # Style based on the 'is_filtered' property
         is_filtered = feature['properties']['is_filtered']
         return {
-            'fillColor': '#00CCFF' if is_filtered else 'transparent', # Bright blue for filtered areas
+            'fillColor': '#00CCFF' if is_filtered else 'transparent',
             'color': 'black' if is_filtered else 'transparent',
             'weight': 1 if is_filtered else 0,
             'fillOpacity': 0.7 if is_filtered else 0,
         }
 
-    # Function to create custom HTML for each feature's popup
     def create_feature_popup_html(feature):
         props = feature['properties']
         msoa_name = props['msoa_full_name']
@@ -251,51 +283,15 @@ def create_base_map(dataframe, current_filter_mask_series, show_black_share, sho
         House Price: £{median_house_price:,.0f}
         """
 
-    # Define tooltip fields (popups are handled by create_feature_popup_html)
-    tooltip_fields = ["msoa_full_name", "black_share", "income", "median_house_price"]
-    tooltip_aliases = ["MSOA:", "% Black:", "Income (£):", "House Price (£):"]
-
     GeoJson(
         gdf_with_filter_mask,
         name="Live Filtered Areas",
         style_function=style_function,
-        tooltip=GeoJsonTooltip(fields=tooltip_fields, aliases=tooltip_aliases),
+        tooltip=GeoJsonTooltip(fields=["msoa_full_name", "black_share", "income", "median_house_price"],
+                             aliases=["MSOA:", "% Black:", "Income (£):", "House Price (£):"]),
         popup=folium.Popup(max_width=300, html=create_feature_popup_html),
-        show=show_filtered_areas # Controlled by sidebar checkbox
+        show=show_filtered_areas
     ).add_to(m)
-
-    # --- Add Custom Legends (Overlays within Folium Map) ---
-    # Approximate colors for YlOrRd (low to high)
-    black_share_colors = [
-        ("#FFFFCC", "Low (0-10%)"),
-        ("#FD8D3C", "Medium (10-30%)"),
-        ("#BD0026", "High (30%+) ")
-    ]
-
-    # Approximate colors for BuGn (low to high)
-    income_colors = [
-        ("#EDF8FB", "Low"),
-        ("#8FCDAE", "Medium"),
-        ("#006D2C", "High")
-    ]
-
-    # Approximate colors for YlGnBu (low to high)
-    house_price_colors = [
-        ("#FFFFD9", "Low"),
-        ("#99D594", "Medium"),
-        ("#2C7FB8", "High")
-    ]
-
-    # Add legends to the map, stacked from bottom
-    m.get_root().html.add_child(folium.Element(
-        create_custom_legend_html("Median House Price", house_price_colors, 10)
-    ))
-    m.get_root().html.add_child(folium.Element(
-        create_custom_legend_html("Mean Income", income_colors, 130)
-    )) # Adjust offset to stack above house price
-    m.get_root().html.add_child(folium.Element(
-        create_custom_legend_html("% Black Population", black_share_colors, 250)
-    )) # Adjust offset to stack above income
 
     return m
 
