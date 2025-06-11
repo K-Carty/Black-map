@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+*.log
+*.env
+.env/
+
+# Virtual environment
+venv/
+.venv/
+
+# IDEs
+.vscode/
+.idea/
+
+# Streamlit
+.streamlit/
+
+# Generated files
+*.html 
